@@ -205,17 +205,18 @@ class MyScheduleController extends Controller
                 ->orderBy('starts_at')
                 ->take(5)
                 ->get();
-
-            $logs = AttendanceEvent::where('user_id', $user->id);
+            $logs = AttendanceEvent::where('user_id', $user->id)
+                ->where('event_type', 'join');
 
             $stats['this_month'] = (clone $logs)
-                ->whereMonth('session_date', now()->month)
-                ->whereYear('session_date', now()->year)
+                ->whereMonth('occurred_at', now()->month)
+                ->whereYear('occurred_at', now()->year)
                 ->count();
 
             $stats['this_week'] = (clone $logs)
-                ->whereDate('session_date', '>=', now()->subDays(6)->toDateString())
+                ->whereDate('occurred_at', '>=', now()->subDays(6)->toDateString())
                 ->count();
+
         }
 
         return view('student.home', compact('user', 'klass', 'todaySlots', 'stats', 'today', 'extras'));
@@ -230,18 +231,18 @@ class MyScheduleController extends Controller
 
         $logs = AttendanceEvent::with(['scheduleSlot.klass.academicLevel', 'scheduleSlot.bell'])
             ->where('user_id', $user->id)
-            ->whereDate('session_date', '>=', $from->toDateString())
-            ->whereDate('session_date', '<=', $to->toDateString())
-            ->orderBy('session_date', 'desc')
-            ->orderBy('id', 'desc')
+            ->where('event_type', 'join')
+            ->whereDate('occurred_at', '>=', $from->toDateString())
+            ->whereDate('occurred_at', '<=', $to->toDateString())
+            ->orderBy('occurred_at', 'desc')
             ->get();
 
-        $byDate = $logs->groupBy(fn($l) => $l->session_date->format('Y-m-d'));
+        $byDate = $logs->groupBy(fn($l) => $l->occurred_at->format('Y-m-d'));
 
         $stats = [
             'total_sessions' => $logs->count(),
             'total_minutes'  => $logs->sum(fn($l) => $l->calculateDuration()),
-            'this_week'      => $logs->filter(fn($l) => $l->session_date->gte(Carbon::today()->subDays(6)))->count(),
+            'this_week'      => $logs->filter(fn($l) => $l->occurred_at->gte(Carbon::today()->subDays(6)))->count(),
         ];
 
         return view('my-schedule.my-attendance', compact('logs', 'byDate', 'stats', 'from', 'to'));
@@ -250,12 +251,13 @@ class MyScheduleController extends Controller
     public function exportAttendance()
     {
         $user = auth()->user();
-
         $logs = AttendanceEvent::with(['scheduleSlot.klass.academicLevel', 'scheduleSlot.bell'])
             ->where('user_id', $user->id)
-            ->orderBy('session_date', 'desc')
+            ->where('event_type', 'join')
+            ->orderBy('occurred_at', 'desc')
             ->orderBy('id', 'desc')
             ->get();
+
 
         $filename = 'my-attendance-' . now()->format('Y-m-d') . '.xlsx';
 
