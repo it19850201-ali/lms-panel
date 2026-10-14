@@ -27,6 +27,10 @@ use Illuminate\Support\Facades\Route;
 | Public Routes
 |--------------------------------------------------------------------------
 */
+// تازه‌سازی CSRF token
+Route::get('/csrf-token', function () {
+    return response()->json(['token' => csrf_token()]);
+})->name('csrf.token');
 
 Route::get('/', function () {
     if (auth()->check()) {

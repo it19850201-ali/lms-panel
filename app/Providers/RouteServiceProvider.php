@@ -33,7 +33,7 @@ class RouteServiceProvider extends ServiceProvider
 
         // Rate limit برای login: ۵ تلاش در دقیقه (فقط بر اساس IP)
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
+            return Limit::perMinute(10)->by($request->ip());
         });
 
         // Rate limit برای ثبت‌نام: ۳ در ساعت

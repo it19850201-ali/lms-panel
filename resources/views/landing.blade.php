@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>سامانه آموزش مجازی</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
@@ -283,7 +284,43 @@
 	<meta http-equiv="Expires" content="0">
 </head>
 <body>
+<script>
+// 🔑 تازه‌سازی CSRF token
+(function() {
+    function refreshCsrf() {
+        return fetch('/csrf-token', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.token) {
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta) meta.setAttribute('content', data.token);
+                
+                document.querySelectorAll('input[name="_token"]').forEach(function(el) {
+                    el.value = data.token;
+                });
+                console.log('CSRF token refreshed');
+            }
+            return data;
+        })
+        .catch(function(err) {
+            console.warn('CSRF refresh failed:', err);
+        });
+    }
 
+    // Refresh immediately on page load
+    refreshCsrf();
+    
+    // Refresh every 5 minutes (in case user keeps page open)
+    setInterval(refreshCsrf, 300000);
+    
+    // Expose globally
+    window.refreshCsrf = refreshCsrf;
+})();
+</script>
     <nav class="navbar">
         <div class="container navbar-inner">
             <a href="/" class="logo">
@@ -391,8 +428,7 @@
                     <label class="form-label">رمز عبور</label>
                     <input type="password" name="password" class="form-input" dir="ltr" required>
                 </div>
-
-                <button type="submit" class="modal-submit">ورود</button>
+		<button type="submit" class="modal-submit">ورود</button>
             </form>
 
             <p class="modal-footer-text">
@@ -471,8 +507,12 @@
     <script>
     // ============ Login Modal ============
     function openLoginModal() {
+        if (window.refreshCsrf) window.refreshCsrf();
         document.getElementById('loginModal').classList.add('active');
         document.body.style.overflow = 'hidden';
+        setTimeout(() => {
+            document.querySelector('#loginModal input[name="code_melli"]')?.focus();
+        }, 100);
     }
 
     function closeLoginModal() {
@@ -482,6 +522,7 @@
 
     // ============ Register Modal ============
     function openRegisterModal() {
+        if (window.refreshCsrf) window.refreshCsrf();
         document.getElementById('registerModal').classList.add('active');
         document.body.style.overflow = 'hidden';
     }

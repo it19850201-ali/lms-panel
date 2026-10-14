@@ -27,16 +27,17 @@ class AttendanceLogger
         }
 
         return AttendanceEvent::create([
-            'meeting_id'      => $slot->bbb_meeting_id,
-            'bbb_attendee_id' => $bbbUserId,
-            'full_name'       => $fullName,
-            'role'            => $role,
-            'event_type'      => 'join',
-            'occurred_at'     => now(),
-            'source'          => 'bbb',
+            'meeting_id'       => $slot->bbb_meeting_id,
+            'schedule_slot_id' => $slot->id,
+            'user_id'          => $user?->id,
+            'bbb_attendee_id'  => $bbbUserId,
+            'full_name'        => $fullName,
+            'role'             => $role,
+            'event_type'       => 'join',
+            'occurred_at'      => now(),
+            'source'           => 'bbb',
         ]);
     }
-
     public static function logLeave(
         ScheduleSlot $slot,
         ?User $user,
@@ -55,15 +56,18 @@ class AttendanceLogger
         }
 
         return AttendanceEvent::create([
-            'meeting_id'      => $slot->bbb_meeting_id,
-            'bbb_attendee_id' => $bbbUserId,
-            'full_name'       => $fullName,
-            'role'            => $role,
-            'event_type'      => 'leave',
-            'occurred_at'     => now(),
-            'source'          => 'bbb',
+            'meeting_id'       => $slot->bbb_meeting_id,
+            'schedule_slot_id' => $slot->id,
+            'user_id'          => $user?->id,
+            'bbb_attendee_id'  => $bbbUserId,
+            'full_name'        => $fullName,
+            'role'             => $role,
+            'event_type'       => 'leave',
+            'occurred_at'      => now(),
+            'source'           => 'bbb',
         ]);
     }
+
 
     public static function getDurationMinutes(string $meetingId, string $bbbAttendeeId): float
     {

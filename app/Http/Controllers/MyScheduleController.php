@@ -14,21 +14,16 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class MyScheduleController extends Controller
 {
-    /**
-     * لیست کلاس‌ها برای معلم
-     */
     public function index()
     {
         $user = auth()->user();
 
         if ($user->isTeacher()) {
-            // کلاس‌های عادی
             $slots = ScheduleSlot::with(['klass.academicLevel', 'bell', 'teacher'])
                 ->where('teacher_id', $user->id)
                 ->where('is_extra', false)
                 ->get();
 
-            // فوق‌برنامه‌ها
             $extras = ScheduleSlot::with(['klass.academicLevel', 'teacher'])
                 ->where('teacher_id', $user->id)
                 ->where('is_extra', true)
@@ -83,18 +78,6 @@ class MyScheduleController extends Controller
         return $result;
     }
 
-    /**
-     * ورود به کلاس (BBB)
-     */
-        // چک حداکثر جلسات هم‌زمان (فقط برای اولین ورودی)
-        $school = $slot->school;
-        if ($school && $slot->isLive() && !$slot->attendanceLogs()->whereDate('session_date', today())->exists()) {
-            if (!$school->canStartConcurrentSession()) {
-                return back()->withErrors([
-                    'error' => "به حداکثر تعداد کلاس هم‌زمان پلن ({$school->plan_max_concurrent}) رسیده‌اید.",
-                ]);
-            }
-        }
     public function join(ScheduleSlot $slot)
     {
         $user = auth()->user();
@@ -107,8 +90,19 @@ class MyScheduleController extends Controller
             return back()->withErrors(['error' => 'جلسه BBB این کلاس ساخته نشده']);
         }
 
+        // چک زمان کلاس
         if (!$this->isWithinClassTime($slot, $user)) {
             return back()->withErrors(['error' => $this->getTimeError($slot)]);
+        }
+
+        // چک حداکثر جلسات هم‌زمان (فقط برای اولین ورودی)
+        $school = $slot->school;
+        if ($school && $slot->isLive() && !$slot->attendanceLogs()->whereDate('session_date', today())->exists()) {
+            if (!$school->canStartConcurrentSession()) {
+                return back()->withErrors([
+                    'error' => "به حداکثر تعداد کلاس هم‌زمان پلن ({$school->plan_max_concurrent}) رسیده‌اید.",
+                ]);
+            }
         }
 
         $role = $user->isStudent() ? 'VIEWER' : 'MODERATOR';
@@ -130,9 +124,6 @@ class MyScheduleController extends Controller
         }
     }
 
-    /**
-     * صفحه‌ی دانش‌آموز — گرید کلاس خودش
-     */
     public function student()
     {
         $user = auth()->user();
@@ -175,9 +166,6 @@ class MyScheduleController extends Controller
         ));
     }
 
-    /**
-     * صفحه‌ی خانه‌ی دانش‌آموز
-     */
     public function studentHome()
     {
         $user = auth()->user();
@@ -218,31 +206,21 @@ class MyScheduleController extends Controller
                 ->take(5)
                 ->get();
 
-              $logs = AttendanceEvent::where('user_id', $user->id)->where('event_type', 'join');
+            $logs = AttendanceEvent::where('user_id', $user->id);
 
-              $stats['this_month'] = (clone $logs)
-                  ->whereMonth('occurred_at', now()->month)
-                  ->whereYear('occurred_at', now()->year)
-                  ->count();
+            $stats['this_month'] = (clone $logs)
+                ->whereMonth('session_date', now()->month)
+                ->whereYear('session_date', now()->year)
+                ->count();
 
-              $stats['this_week'] = (clone $logs)
-                  ->whereDate('occurred_at', '>=', now()->subDays(6)->toDateString())
-                  ->count();
-
-
+            $stats['this_week'] = (clone $logs)
+                ->whereDate('session_date', '>=', now()->subDays(6)->toDateString())
+                ->count();
         }
-        // اطلاعیه‌ها
-        $announcements = \App\Models\Announcement::with('author')
-            ->visibleFor($user)
-            ->take(3)
-            ->get();
-        return view('student.home', compact('user', 'klass', 'todaySlots', 'stats', 'today', 'extras', 'announcements'));
 
+        return view('student.home', compact('user', 'klass', 'todaySlots', 'stats', 'today', 'extras'));
     }
 
-    /**
-     * گزارش حضور من
-     */
     public function myAttendance()
     {
         $user = auth()->user();
@@ -252,10 +230,9 @@ class MyScheduleController extends Controller
 
         $logs = AttendanceEvent::with(['scheduleSlot.klass.academicLevel', 'scheduleSlot.bell'])
             ->where('user_id', $user->id)
-            ->where('event_type', 'join')
-            ->whereDate('occurred_at', '>=', $from->toDateString())
-            ->whereDate('occurred_at', '<=', $to->toDateString())
-            ->orderBy('occurred_at', 'desc')
+            ->whereDate('session_date', '>=', $from->toDateString())
+            ->whereDate('session_date', '<=', $to->toDateString())
+            ->orderBy('session_date', 'desc')
             ->orderBy('id', 'desc')
             ->get();
 
@@ -270,17 +247,13 @@ class MyScheduleController extends Controller
         return view('my-schedule.my-attendance', compact('logs', 'byDate', 'stats', 'from', 'to'));
     }
 
-    /**
-     * خروجی اکسل حضور من
-     */
     public function exportAttendance()
     {
         $user = auth()->user();
 
         $logs = AttendanceEvent::with(['scheduleSlot.klass.academicLevel', 'scheduleSlot.bell'])
             ->where('user_id', $user->id)
-            ->where('event_type', 'join')
-            ->orderBy('occurred_at', 'desc')
+            ->orderBy('session_date', 'desc')
             ->orderBy('id', 'desc')
             ->get();
 
@@ -289,9 +262,6 @@ class MyScheduleController extends Controller
         return Excel::download(new AttendanceExport($logs), $filename);
     }
 
-    /**
-     * آیا الان داخل زمان کلاس هستیم؟
-     */
     protected function isWithinClassTime(ScheduleSlot $slot, $user): bool
     {
         $now = now();
@@ -306,8 +276,7 @@ class MyScheduleController extends Controller
             return true;
         }
 
-        // ========== از این به بعد فقط دانش‌آموز ==========
-        // فوق‌برنامه
+        // از این به بعد فقط دانش‌آموز
         if ($slot->is_extra) {
             if (!$slot->starts_at || !$slot->ends_at) return false;
 
@@ -317,7 +286,6 @@ class MyScheduleController extends Controller
             return $now->gte($start) && $now->lte($end);
         }
 
-        // کلاس عادی
         if (!$slot->bell) return false;
 
         $carbonDay = $now->dayOfWeek;
@@ -327,14 +295,12 @@ class MyScheduleController extends Controller
             return false;
         }
 
-        $start = \Carbon\Carbon::parse($now->toDateString() . ' ' . $slot->bell->start_time)->subMinutes(5);
-        $end = \Carbon\Carbon::parse($now->toDateString() . ' ' . $slot->bell->end_time);
+        $start = Carbon::parse($now->toDateString() . ' ' . $slot->bell->start_time)->subMinutes(5);
+        $end = Carbon::parse($now->toDateString() . ' ' . $slot->bell->end_time);
 
         return $now->gte($start) && $now->lte($end);
     }
-    /**
-     * پیام خطای زمان
-     */
+
     protected function getTimeError(ScheduleSlot $slot): string
     {
         if ($slot->is_extra) {
