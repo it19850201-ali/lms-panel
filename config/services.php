@@ -24,12 +24,6 @@ return [
     'url' => env('BBB_URL'),
     'secret' => env('BBB_SECRET'),
     ],
-    'moodle' => [
-    'url'   => env('MOODLE_URL'),
-    'token' => env('MOODLE_TOKEN'),
-    'sso_token' => env('MOODLE_SSO_TOKEN'),
-
-    ],
 
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),

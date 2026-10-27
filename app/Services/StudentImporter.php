@@ -124,7 +124,6 @@ class StudentImporter
             ]);
 
             $this->stats['students_updated']++;
-            $this->syncToMoodle($student->fresh());
             return;
         }
 
@@ -148,29 +147,10 @@ class StudentImporter
         ]);
 
         $this->stats['students_created']++;
-        $this->syncToMoodle($newStudent);
     }
 
     /**
-     * Enrol دانش‌آموز در Moodle course مربوط به کلاس
      */
-    protected function syncToMoodle(User $student): void
-    {
-        if (!$student->klass_id) {
-            return;
-        }
-
-        try {
-            $klass = Klass::find($student->klass_id);
-            if (!$klass) return;
-
-            $sync = new KlassMoodleSync();
-            $sync->enrollStudentInKlass($student, $klass);
-        } catch (\Throwable $e) {
-            \Log::warning("Failed to sync student {$student->id} to Moodle: " . $e->getMessage());
-        }
-    }
-
     protected function normalizeDigits(string $value): string
     {
         return str_replace(

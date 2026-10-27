@@ -3,13 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\AcademicLevel;
-use Illuminate\Support\Facades\DB;
 use App\Models\AttendanceEvent;
-use Carbon\Carbon;
-use App\Services\KlassMoodleSync;
 use App\Models\Klass;
 use App\Models\User;
-use App\Services\MoodleClient;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -26,9 +23,6 @@ class ManagerController extends Controller
         return $user->isAdmin() ? null : $user->school_id;
     }
 
-    /**
-     * اطمینان از وجود school_id (ادمین اجازه نداره)
-     */
     protected function ensureSchool(): int
     {
         $schoolId = $this->getSchoolId();
@@ -62,11 +56,7 @@ class ManagerController extends Controller
             ->count();
 
         return view('manager.dashboard', compact(
-            'pendingCount',
-            'approvedCount',
-            'levelsCount',
-            'klassesCount',
-            'studentsCount'
+            'pendingCount', 'approvedCount', 'levelsCount', 'klassesCount', 'studentsCount'
         ));
     }
 
@@ -98,6 +88,7 @@ class ManagerController extends Controller
 
         return view('manager.teachers', compact('pending', 'approved', 'rejected'));
     }
+
     public function approveTeacher(User $user)
     {
         $manager = auth()->user();
@@ -107,25 +98,9 @@ class ManagerController extends Controller
             return back()->withErrors(['error' => 'این کاربر قبلاً بررسی شده است.']);
         }
 
-        try {
-            $moodle = new MoodleClient();
-            $nameParts = explode(' ', trim($user->name), 2);
-            $firstName = $nameParts[0];
-            $lastName = $nameParts[1] ?? '.';
+        $user->update(['status' => 'approved']);
 
-            $moodleUser = $moodle->createOrGetUser($user->email, $firstName, $lastName);
-
-            $user->update([
-                'status' => 'approved',
-                'moodle_user_id' => $moodleUser['id'] ?? null,
-            ]);
-
-            return back()->with('success', "معلم {$user->name} تایید شد" . ($user->moodle_user_id ? ' و در Moodle ساخته شد' : ''));
-
-        } catch (\Throwable $e) {
-            Log::error('Moodle user creation failed: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'خطا در ساخت کاربر در Moodle: ' . $e->getMessage()]);
-        }
+        return back()->with('success', "معلم {$user->name} تایید شد");
     }
 
     public function rejectTeacher(User $user)
@@ -137,33 +112,17 @@ class ManagerController extends Controller
 
         return back()->with('success', "درخواست {$user->name} رد شد");
     }
+
     public function toggleTeacherStatus(User $user)
     {
         $manager = auth()->user();
         $this->authorizeTeacher($user, $manager);
 
         if ($user->status === 'approved') {
-            // غیرفعال کن
             $user->update(['status' => 'rejected']);
             $message = "معلم {$user->name} غیرفعال شد";
         } elseif ($user->status === 'rejected') {
-            // فعال کن (اگه Moodle نداشت، بسازش)
-            if (!$user->moodle_user_id) {
-                try {
-                    $moodle = new MoodleClient();
-                    $nameParts = explode(' ', trim($user->name), 2);
-                    $firstName = $nameParts[0];
-                    $lastName = $nameParts[1] ?? '.';
-
-                    $moodleUser = $moodle->createOrGetUser($user->email, $firstName, $lastName);
-                    $user->moodle_user_id = $moodleUser['id'] ?? null;
-                } catch (\Throwable $e) {
-                    \Log::warning('Moodle user creation on reactivate failed: ' . $e->getMessage());
-                }
-            }
-
-            $user->status = 'approved';
-            $user->save();
+            $user->update(['status' => 'approved']);
             $message = "معلم {$user->name} فعال شد";
         } else {
             return back()->withErrors(['error' => 'این کاربر در وضعیت قابل تغییر نیست.']);
@@ -171,6 +130,18 @@ class ManagerController extends Controller
 
         return back()->with('success', $message);
     }
+
+    protected function authorizeTeacher(User $user, User $manager): void
+    {
+        if ($user->role !== 'teacher') {
+            abort(403);
+        }
+
+        if (!$manager->isAdmin() && $user->school_id !== $manager->school_id) {
+            abort(403, 'این معلم به مدرسه‌ی شما تعلق ندارد');
+        }
+    }
+
     public function createTeacher()
     {
         $schoolId = $this->getSchoolId();
@@ -207,7 +178,6 @@ class ManagerController extends Controller
             'password.confirmed'  => 'تکرار رمز مطابقت ندارد',
         ]);
 
-        // اگه رمز ندادی، کد ملی رمز می‌شه
         $password = !empty($validated['password']) ? $validated['password'] : $validated['code_melli'];
 
         $teacher = User::create([
@@ -222,35 +192,8 @@ class ManagerController extends Controller
             'password_changed_at' => !empty($validated['password']) ? now() : null,
         ]);
 
-        // ساخت خودکار توی Moodle
-        try {
-            $moodle = new MoodleClient();
-            $nameParts = explode(' ', trim($teacher->name), 2);
-            $firstName = $nameParts[0];
-            $lastName = $nameParts[1] ?? '.';
-
-            $moodleUser = $moodle->createOrGetUser($teacher->email, $firstName, $lastName);
-
-            if (!empty($moodleUser['id'])) {
-                $teacher->update(['moodle_user_id' => $moodleUser['id']]);
-            }
-        } catch (\Throwable $e) {
-            \Log::warning('Moodle user creation for new teacher failed: ' . $e->getMessage());
-        }
-
         return redirect()->route('manager.teachers')
-            ->with('success', "معلم {$teacher->name} با موفقیت ساخته شد" . ($teacher->fresh()->moodle_user_id ? ' و در Moodle ثبت شد' : ''));
-    }
-
-    protected function authorizeTeacher(User $user, User $manager): void
-    {
-        if ($user->role !== 'teacher') {
-            abort(403);
-        }
-
-        if (!$manager->isAdmin() && $user->school_id !== $manager->school_id) {
-            abort(403, 'این معلم به مدرسه‌ی شما تعلق ندارد');
-        }
+            ->with('success', "معلم {$teacher->name} با موفقیت ساخته شد");
     }
 
     // ========== پایه‌ها ==========
@@ -305,16 +248,13 @@ class ManagerController extends Controller
     public function destroyLevel(AcademicLevel $level)
     {
         $this->authorizeLevel($level);
-
         $level->delete();
-
         return back()->with('success', 'پایه حذف شد');
     }
 
     protected function authorizeLevel(AcademicLevel $level): void
     {
         $manager = auth()->user();
-
         if (!$manager->isAdmin() && $level->school_id !== $manager->school_id) {
             abort(403);
         }
@@ -368,28 +308,18 @@ class ManagerController extends Controller
             return back()->withErrors(['name' => 'این کلاس در این پایه قبلاً ثبت شده است.'])->withInput();
         }
 
-        $klass = Klass::create([
+        Klass::create([
             'school_id' => $schoolId,
             'academic_level_id' => $level->id,
             'name' => $validated['name'],
         ]);
 
-        // ساخت خودکار Moodle course
-        try {
-            $sync = new KlassMoodleSync();
-            $sync->ensureCourse($klass);
-        } catch (\Throwable $e) {
-            // خطای Moodle مانع ساخت Klass نمی‌شه
-            \Log::warning('Auto-sync Moodle on klass create failed: ' . $e->getMessage());
-        }
-
-        return redirect()->route('manager.klasses')->with('success', 'کلاس با موفقیت ساخته شد' . ($klass->fresh()->moodle_course_id ? ' و در Moodle ثبت شد' : ''));
+        return redirect()->route('manager.klasses')->with('success', 'کلاس با موفقیت ساخته شد');
     }
 
     public function editKlass(Klass $klass)
     {
         $this->authorizeKlass($klass);
-
         $schoolId = $this->getSchoolId();
 
         $levels = AcademicLevel::when($schoolId, fn($q) => $q->where('school_id', $schoolId))
@@ -409,12 +339,10 @@ class ManagerController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
-        // اطمینان از اینکه level به همین مدرسه تعلق داره
         $level = AcademicLevel::where('id', $validated['academic_level_id'])
             ->where('school_id', $klass->school_id)
             ->firstOrFail();
 
-        // چک تکراری بودن (به جز خودش)
         $exists = Klass::where('academic_level_id', $level->id)
             ->where('name', $validated['name'])
             ->where('id', '!=', $klass->id)
@@ -432,55 +360,34 @@ class ManagerController extends Controller
         return redirect()->route('manager.klasses')->with('success', 'کلاس با موفقیت ویرایش شد');
     }
 
-
     public function destroyKlass(Klass $klass)
     {
         $this->authorizeKlass($klass);
-
         $klass->delete();
-
         return back()->with('success', 'کلاس حذف شد');
     }
 
-    public function syncKlasses()
+    protected function authorizeKlass(Klass $klass): void
     {
-        $schoolId = $this->ensureSchool();
-
-        try {
-            $sync = new KlassMoodleSync();
-            $stats = $sync->syncSchool($schoolId);
-
-            $message = "همگام‌سازی کامل شد. ";
-            $message .= "کلاس‌های موفق: {$stats['klasses_ok']} از {$stats['klasses_total']}. ";
-            $message .= "دانش‌آموزان: {$stats['students_total']}. ";
-            $message .= "معلمان: {$stats['teachers_total']}.";
-
-            if (!empty($stats['errors'])) {
-                return redirect()->route('manager.klasses')
-                    ->with('success', $message)
-                    ->with('sync_errors', $stats['errors']);
-            }
-
-            return redirect()->route('manager.klasses')->with('success', $message);
-
-        } catch (\Throwable $e) {
-            return back()->withErrors(['error' => 'خطا در همگام‌سازی: ' . $e->getMessage()]);
+        $manager = auth()->user();
+        if (!$manager->isAdmin() && $klass->school_id !== $manager->school_id) {
+            abort(403);
         }
     }
+
+    // ========== گزارش حضور و غیاب ==========
     public function attendanceDashboard(Request $request)
     {
         $schoolId = $this->getSchoolId();
 
-        // بازه‌ی تاریخ
         $range = $request->input('range', 'today');
         $from = $request->input('from');
         $to = $request->input('to');
 
         [$startDate, $endDate] = $this->resolveDateRange($range, $from, $to);
 
-        // === آمار کلی ===
         $baseQuery = AttendanceEvent::query()
-            ->where("event_type", "join")
+            ->where('event_type', 'join')
             ->whereDate('occurred_at', '>=', $startDate->toDateString())
             ->whereDate('occurred_at', '<=', $endDate->toDateString())
             ->when($schoolId, fn($q) => $q->whereHas('scheduleSlot', fn($sq) => $sq->where('school_id', $schoolId)));
@@ -490,15 +397,13 @@ class ManagerController extends Controller
         $totalTeachers = (clone $baseQuery)->where('role', 'MODERATOR')->distinct('user_id')->count('user_id');
         $totalStudents = (clone $baseQuery)->where('role', 'VIEWER')->distinct('user_id')->count('user_id');
 
-        // === حضور به تفکیک روز ===
         $dailyStats = (clone $baseQuery)
             ->selectRaw('DATE(occurred_at) as session_date, count(*) as total, count(distinct schedule_slot_id) as sessions')
-            ->groupBy(DB::raw('DATE(occurred_at)'))
+            ->groupBy('session_date')
             ->orderBy('session_date', 'desc')
             ->limit(30)
             ->get();
 
-        // === معلم‌های برتر (بیشترین حضور) ===
         $topTeachers = (clone $baseQuery)
             ->where('role', 'MODERATOR')
             ->whereNotNull('user_id')
@@ -515,7 +420,6 @@ class ManagerController extends Controller
             ->sortByDesc('count')
             ->take(10);
 
-        // === کلاس‌های پرحضور ===
         $topKlasses = (clone $baseQuery)
             ->with('scheduleSlot.klass.academicLevel')
             ->get()
@@ -549,14 +453,5 @@ class ManagerController extends Controller
             ],
             default => [Carbon::today(), Carbon::today()], // today
         };
-    }
-
-    protected function authorizeKlass(Klass $klass): void
-    {
-        $manager = auth()->user();
-
-        if (!$manager->isAdmin() && $klass->school_id !== $manager->school_id) {
-            abort(403);
-        }
     }
 }

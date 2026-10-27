@@ -10,20 +10,6 @@
             <a href="{{ route('manager.dashboard') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به پنل</a>
         </div>
         <div class="flex gap-2">
-            <form method="POST" action="{{ route('manager.klasses.sync') }}"
-                  onsubmit="return confirm('همگام‌سازی همه‌ی کلاس‌ها با Moodle انجام شود؟');">
-                @csrf
-                <button type="submit"
-                        style="border: 2px solid #312e81; color: #312e81; background: #ffffff; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;"
-                        onmouseover="this.style.background='#312e81'; this.style.color='#ffffff';"
-                        onmouseout="this.style.background='#ffffff'; this.style.color='#312e81';">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    <span>همگام‌سازی با Moodle</span>
-                </button>
-            </form>
             <a href="{{ route('manager.klasses.create') }}"
                class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
                 + کلاس جدید
@@ -63,11 +49,9 @@
                             </h3>
                             @if ($klass->isSynced())
                                 <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                                    ✓ Moodle
                                 </span>
                             @else
                                 <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
-                                    Moodle ندارد
                                 </span>
                             @endif
                         </div>

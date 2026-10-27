@@ -19,7 +19,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\ScheduleImportController;
 use App\Http\Controllers\StudentImportController;
-use App\Services\MoodleClient;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -67,16 +66,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/join/{meetingId}', [JoinController::class, 'show'])->name('guest.join.show');
 Route::post('/join/{meetingId}', [JoinController::class, 'join'])->name('guest.join.submit');
 
-// === تست اتصال Moodle ===
-Route::get('/test-moodle', function () {
-    $moodle = new MoodleClient();
-    try {
-        $result = $moodle->createCourse('دوره تست از لاراول', 'test-laravel-' . time());
-        return response()->json(['status' => 'success', 'result' => $result]);
-    } catch (\Throwable $e) {
-        return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-    }
-});
 
 /*
 |--------------------------------------------------------------------------
@@ -114,8 +103,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/materials/{material}/download', [MaterialController::class, 'download'])->name('materials.download');
     Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy');
 
-    // === SSO - ورود به Moodle ===
-    Route::get('/moodle/sso/{slot}', [MoodleSsoController::class, 'redirectToCourse'])->name('moodle.sso');
 
     // === اطلاعیه‌ها (دید کاربر) ===
     Route::get('/announcements', [AnnouncementController::class, 'feed'])->name('announcements.feed');
@@ -215,7 +202,6 @@ Route::middleware(['auth', 'manager'])->prefix('manager')->name('manager.')->gro
     Route::get('/klasses', [ManagerController::class, 'klasses'])->name('klasses');
     Route::get('/klasses/create', [ManagerController::class, 'createKlass'])->name('klasses.create');
     Route::post('/klasses', [ManagerController::class, 'storeKlass'])->name('klasses.store');
-    Route::post('/klasses/sync', [ManagerController::class, 'syncKlasses'])->name('klasses.sync');
     Route::get('/klasses/{klass}/edit', [ManagerController::class, 'editKlass'])->name('klasses.edit');
     Route::put('/klasses/{klass}', [ManagerController::class, 'updateKlass'])->name('klasses.update');
     Route::delete('/klasses/{klass}', [ManagerController::class, 'destroyKlass'])->name('klasses.destroy');

@@ -136,13 +136,6 @@
                                                 </button>
                                             @endif
 
-                                            @if ($slot->klass?->moodle_course_id)
-                                                <a href="{{ route('moodle.sso', $slot) }}"
-                                                   target="_blank"
-                                                   class="mt-1 block text-center bg-orange-600 text-white text-xs px-2 py-1.5 rounded-lg hover:bg-orange-700">
-                                                    📚 محتوای درس
-                                                </a>
-                                            @endif
                                         </div>
                                     @else
                                         <div class="w-full h-full min-h-[50px] rounded-lg border-2 border-dashed border-gray-100"></div>

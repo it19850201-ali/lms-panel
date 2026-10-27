@@ -64,14 +64,6 @@
                                             @if ($slot->room)
                                                 <div class="text-xs text-gray-400 mt-0.5">اتاق: {{ $slot->room }}</div>
                                             @endif
-					    @if ($slot->klass?->moodle_course_id)
-					        <a href="{{ route('moodle.sso', $slot) }}"
-					           target="_blank"
-					           onclick="event.stopPropagation();"
-					           class="mt-2 block text-center bg-orange-600 text-white text-xs px-2 py-1.5 rounded-lg hover:bg-orange-700">
-        📚 محتوای Moodle
-					        </a>
-					    @endif
                                             <a href="{{ route('manager.schedule.join', $slot) }}"
                                                onclick="event.stopPropagation();"
                                                class="mt-2 block text-center bg-green-600 text-white text-xs px-2 py-1.5 rounded-lg hover:bg-green-700">

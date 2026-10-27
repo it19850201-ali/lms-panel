@@ -59,7 +59,6 @@ class ScheduleImporter
         }
 
         $bbb = new BBBClient();
-        $sync = new KlassMoodleSync();
 
         foreach ($rows as $index => $row) {
             if ($index === 0) continue;
@@ -159,7 +158,6 @@ class ScheduleImporter
 
             // ساخت Moodle course
             try {
-                $sync->ensureCourse($klass);
             } catch (\Throwable $e) {
                 Log::warning("Moodle course creation failed for klass {$klass->id}: {$e->getMessage()}");
             }
@@ -168,7 +166,6 @@ class ScheduleImporter
             $this->stats['klasses_created']++;
             // ساخت Moodle course
             try {
-                $sync->ensureCourse($klass);
             } catch (\Throwable $e) {
                 Log::warning("Moodle course creation failed for klass {$klass->id}: {$e->getMessage()}");
             }
