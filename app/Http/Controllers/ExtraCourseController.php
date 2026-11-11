@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\MoodleClient;
-use App\Services\StudentExcelParser;
+use App\Helpers\JalaliHelper;
+use App\Models\Course;
 use App\Services\BBBClient;
+use App\Services\StudentExcelParser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ExtraCourseController extends Controller
 {
@@ -38,11 +40,9 @@ class ExtraCourseController extends Controller
             'ends_at' => 'nullable|string',
         ]);
 
-        // تبدیل تاریخ شمسی به میلادی
-        $startsAtGregorian = \App\Helpers\JalaliHelper::toGregorian($validated['starts_at'] ?? null);
-        $endsAtGregorian = \App\Helpers\JalaliHelper::toGregorian($validated['ends_at'] ?? null);
+        $startsAtGregorian = JalaliHelper::toGregorian($validated['starts_at'] ?? null);
+        $endsAtGregorian = JalaliHelper::toGregorian($validated['ends_at'] ?? null);
 
-        // اعتبارسنجی دستی تاریخ‌ها
         if (!empty($validated['starts_at']) && $startsAtGregorian === null) {
             return back()->withErrors(['starts_at' => 'فرمت تاریخ شروع نامعتبر است. مثال: ۱۴۰۵/۰۷/۰۴ ۱۰:۳۰'])->withInput();
         }
@@ -53,44 +53,27 @@ class ExtraCourseController extends Controller
             return back()->withErrors(['ends_at' => 'تاریخ پایان باید بعد از تاریخ شروع باشد'])->withInput();
         }
 
-        $moodle = new MoodleClient();
+        $students = $validated['students'] ?? [];
+        $studentCount = count($students);
 
         try {
-            $courseResult = $moodle->createCourse(
-                $validated['title'],
-                'extra-' . time()
-            );
-            $courseId = $courseResult[0]['id'];
-
-            $studentCount = 0;
-            if (!empty($validated['students'])) {
-                foreach ($validated['students'] as $student) {
-                    $nameParts = explode(' ', trim($student['name']), 2);
-                    $firstName = $nameParts[0];
-                    $lastName = $nameParts[1] ?? '.';
-
-                    $user = $moodle->createOrGetUser($student['email'], $firstName, $lastName);
-                    $moodle->enrolUser($user['id'], $courseId);
-                    $studentCount++;
-                }
-            }
-
             $bbb = new BBBClient();
-            $meetingId = 'extra-' . $courseId . '-' . time();
+            $meetingId = 'extra-' . auth()->id() . '-' . time();
             $bbb->createMeeting($meetingId, $validated['title']);
             $joinUrl = $bbb->getJoinUrl($meetingId, 'مدیر کلاس', 'MODERATOR');
 
-            \App\Models\Course::create([
+            Course::create([
                 'user_id' => auth()->id(),
-                'moodle_course_id' => $courseId,
                 'bbb_meeting_id' => $meetingId,
                 'title' => $validated['title'],
                 'type' => 'extra',
                 'starts_at' => $startsAtGregorian,
                 'ends_at' => $endsAtGregorian,
                 'meta' => [
+                    'students' => $students,
                     'student_count' => $studentCount,
                     'description' => $validated['description'] ?? null,
+                    'open_enrollment' => (bool) ($validated['open_enrollment'] ?? false),
                 ],
             ]);
 
@@ -101,6 +84,8 @@ class ExtraCourseController extends Controller
             ]);
 
         } catch (\Throwable $e) {
+            Log::error('Extra course creation failed: ' . $e->getMessage());
+
             return back()->withErrors(['error' => 'خطا در ساخت کلاس: ' . $e->getMessage()])->withInput();
         }
     }

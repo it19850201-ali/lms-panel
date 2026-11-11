@@ -10,12 +10,6 @@ class Klass extends Model
         'school_id',
         'academic_level_id',
         'name',
-        'moodle_course_id',
-        'moodle_synced_at',
-    ];
-
-    protected $casts = [
-        'moodle_synced_at' => 'datetime',
     ];
 
     public function school()
@@ -37,21 +31,14 @@ class Klass extends Model
     {
         return $this->hasMany(ScheduleSlot::class, 'klass_id');
     }
+
     public function materials()
     {
         return $this->hasMany(CourseMaterial::class, 'klass_id');
     }
 
-    /**
-     * نام کامل کلاس برای نمایش در Moodle
-     */
     public function getFullNameAttribute(): string
     {
         return "{$this->academicLevel->name} - {$this->name}";
-    }
-
-    public function isSynced(): bool
-    {
-        return !empty($this->moodle_course_id);
     }
 }

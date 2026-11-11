@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\MoodleClient;
-use App\Services\StudentExcelParser;
+use App\Models\Course;
 use App\Services\BBBClient;
+use App\Services\StudentExcelParser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CourseWizardController extends Controller
 {
-    // مرحله ۱: اطلاعات پایه‌ی کلاس
     public function step1()
     {
         return view('courses.regular.step1', [
@@ -32,7 +32,6 @@ class CourseWizardController extends Controller
         return redirect()->route('courses.create.regular.step2');
     }
 
-    // مرحله ۲: افزودن دانش‌آموز/دانشجو
     public function step2()
     {
         if (!session('wizard.regular.course_name')) {
@@ -71,7 +70,6 @@ class CourseWizardController extends Controller
         return redirect()->route('courses.create.regular.step3');
     }
 
-    // مرحله ۳: زمان‌بندی
     public function step3()
     {
         if (!session('wizard.regular.students')) {
@@ -98,34 +96,25 @@ class CourseWizardController extends Controller
         return $this->finalize();
     }
 
-    // نهایی‌سازی: ساخت واقعی تو Moodle + BBB
     protected function finalize()
     {
         $wizardData = session('wizard.regular');
-        $moodle = new MoodleClient();
+
+        if (empty($wizardData['course_name']) || empty($wizardData['students'])) {
+            return redirect()->route('courses.create.regular')
+                ->withErrors(['error' => 'اطلاعات ناقص است، لطفاً از ابتدا شروع کنید.']);
+        }
+
+        $studentCount = count($wizardData['students']);
 
         try {
-            $courseResult = $moodle->createCourse(
-                $wizardData['course_name'],
-                'course-' . time()
-            );
-            $courseId = $courseResult[0]['id'];
-
-	    foreach ($wizardData['students'] as $student) {
-    $nameParts = explode(' ', trim($student['name']), 2);
-    $firstName = $nameParts[0];
-    $lastName = $nameParts[1] ?? '.';
-
-    $user = $moodle->createOrGetUser($student['email'], $firstName, $lastName);
-    $moodle->enrolUser($user['id'], $courseId);
-}
             $bbb = new BBBClient();
-            $meetingId = 'course-' . $courseId . '-' . time();;
+            $meetingId = 'course-' . auth()->id() . '-' . time();
             $bbb->createMeeting($meetingId, $wizardData['course_name']);
             $joinUrl = $bbb->getJoinUrl($meetingId, 'مدیر کلاس', 'MODERATOR');
-	    \App\Models\Course::create([
+
+            $course = Course::create([
                 'user_id' => auth()->id(),
-                'moodle_course_id' => $courseId,
                 'bbb_meeting_id' => $meetingId,
                 'title' => $wizardData['course_name'],
                 'type' => 'regular',
@@ -133,19 +122,23 @@ class CourseWizardController extends Controller
                     'grade_level' => $wizardData['grade_level'] ?? null,
                     'day_of_week' => $wizardData['day_of_week'] ?? null,
                     'time' => $wizardData['time'] ?? null,
-                    'student_count' => count($wizardData['students']),
+                    'students' => $wizardData['students'],
+                    'student_count' => $studentCount,
                 ],
             ]);
+
             session()->forget('wizard.regular');
 
             return view('courses.regular.success', [
-                'courseId' => $courseId,
+                'courseId' => $course->id,
                 'courseName' => $wizardData['course_name'],
-                'studentCount' => count($wizardData['students']),
+                'studentCount' => $studentCount,
                 'joinUrl' => $joinUrl,
             ]);
 
         } catch (\Throwable $e) {
+            Log::error('Course wizard finalize failed: ' . $e->getMessage());
+
             return back()->withErrors(['error' => 'خطا در ساخت کلاس: ' . $e->getMessage()]);
         }
     }

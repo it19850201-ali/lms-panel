@@ -13,7 +13,6 @@ use App\Http\Controllers\ExtraCourseController;
 use App\Http\Controllers\JoinController;
 use App\Http\Controllers\ManagerController;
 use App\Http\Controllers\MaterialController;
-use App\Http\Controllers\MoodleSsoController;
 use App\Http\Controllers\MyScheduleController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ScheduleController;

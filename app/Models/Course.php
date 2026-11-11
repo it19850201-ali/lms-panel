@@ -8,7 +8,6 @@ class Course extends Model
 {
     protected $fillable = [
         'user_id',
-        'moodle_course_id',
         'bbb_meeting_id',
         'title',
         'type',

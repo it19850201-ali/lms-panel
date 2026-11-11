@@ -62,13 +62,13 @@ class ScheduleImporter
 
         foreach ($rows as $index => $row) {
             if ($index === 0) continue;
-            $this->processRow($row, $index + 1, $bbb, $sync);
+            $this->processRow($row, $index + 1, $bbb);
         }
 
         return $this->stats;
     }
 
-    protected function processRow(array $row, int $rowNum, BBBClient $bbb, KlassMoodleSync $sync): void
+    protected function processRow(array $row, int $rowNum, BBBClient $bbb): void
     {
         // ستون‌ها: پایه | کلاس | روز | زنگ | نام معلم | موبایل | درس | اتاق
         $levelName   = trim((string)($row[0] ?? ''));
@@ -155,20 +155,6 @@ class ScheduleImporter
                 'name'              => $klassName,
             ]);
             $this->stats['klasses_created']++;
-
-            // ساخت Moodle course
-            try {
-            } catch (\Throwable $e) {
-                Log::warning("Moodle course creation failed for klass {$klass->id}: {$e->getMessage()}");
-            }
-        }
-        if ($klass->wasRecentlyCreated) {
-            $this->stats['klasses_created']++;
-            // ساخت Moodle course
-            try {
-            } catch (\Throwable $e) {
-                Log::warning("Moodle course creation failed for klass {$klass->id}: {$e->getMessage()}");
-            }
         }
 
         // معلم

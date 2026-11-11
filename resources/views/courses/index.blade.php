@@ -105,7 +105,7 @@
                             </a>
 
                             <form method="POST" action="{{ route('courses.destroy', $course) }}"
-                                  onsubmit="return confirm('آیا مطمئنید که می‌خواهید کلاس «{{ $course->title }}» را حذف کنید؟ این کار کلاس را از Moodle هم پاک می‌کند و برگشت‌پذیر نیست.');">
+                                  onsubmit="return confirm('آیا مطمئنید که می‌خواهید کلاس «{{ $course->title }}» را حذف کنید؟ برگشت‌پذیر نیست.');">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit"

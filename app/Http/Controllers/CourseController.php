@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Helpers\JalaliHelper;
 use App\Models\Course;
 use App\Services\BBBClient;
-use App\Services\MoodleClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -80,23 +79,11 @@ class CourseController extends Controller
             return back()->withErrors(['ends_at' => 'تاریخ پایان باید بعد از تاریخ شروع باشد'])->withInput();
         }
 
-        $oldTitle = $course->title;
-
         $course->update([
             'title' => $validated['title'],
             'starts_at' => $startsAtGregorian,
             'ends_at' => $endsAtGregorian,
         ]);
-
-        // اگه اسم عوض شده، توی Moodle هم آپدیت کن (best effort)
-        if ($oldTitle !== $validated['title']) {
-            try {
-                $moodle = new MoodleClient();
-                $moodle->updateCourse($course->moodle_course_id, $validated['title']);
-            } catch (\Throwable $e) {
-                Log::warning('Failed to update Moodle course: ' . $e->getMessage());
-            }
-        }
 
         return redirect()->route('courses.index')->with('success', 'کلاس با موفقیت ویرایش شد');
     }
@@ -105,26 +92,17 @@ class CourseController extends Controller
     {
         abort_if($course->user_id !== auth()->id(), 403);
 
-        $moodleCourseId = $course->moodle_course_id;
         $bbbMeetingId = $course->bbb_meeting_id;
 
-        // اول از دیتابیس خودمون پاک کن
         $course->delete();
 
-        // بعد تلاش کن از Moodle پاک کن (اگه نشد، مهم نیست)
-        try {
-            $moodle = new MoodleClient();
-            $moodle->deleteCourse($moodleCourseId);
-        } catch (\Throwable $e) {
-            Log::warning('Failed to delete Moodle course ' . $moodleCourseId . ': ' . $e->getMessage());
-        }
-
-        // جلسه BBB رو پایان بده
-        try {
-            $bbb = new BBBClient();
-            $bbb->endMeeting($bbbMeetingId);
-        } catch (\Throwable $e) {
-            Log::warning('Failed to end BBB meeting ' . $bbbMeetingId . ': ' . $e->getMessage());
+        if ($bbbMeetingId) {
+            try {
+                $bbb = new BBBClient();
+                $bbb->endMeeting($bbbMeetingId);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to end BBB meeting ' . $bbbMeetingId . ': ' . $e->getMessage());
+            }
         }
 
         return redirect()->route('courses.index')->with('success', 'کلاس با موفقیت حذف شد');

@@ -19,7 +19,6 @@ class User extends Authenticatable
         'role',
         'school_id',
         'status',
-        'moodle_user_id',
         'klass_id',
         'impersonated_by',
         'password_reset_at',
