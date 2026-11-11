@@ -98,4 +98,44 @@ class School extends Model
     {
         return $this->concurrent_sessions_count < $this->plan_max_concurrent;
     }
+    public function terms()
+    {
+        return $this->hasMany(Term::class);
+    }
+
+    /**
+     * ترم فعال فعلی (فقط یکی)
+     */
+    public function activeTerm(): ?Term
+    {
+        return $this->terms()
+            ->where('is_active', true)
+            ->where('starts_at', '<=', now()->toDateString())
+            ->where('ends_at', '>=', now()->toDateString())
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * آیا کاربر می‌تونه کلاس بسازه؟ (فاز ۲ اضافه می‌شه)
+     */
+    public function canCreateClasses(): bool
+    {
+        return $this->is_active;
+    }
+    /**
+     * آیا این مدرسه است؟
+     */
+    public function isSchool(): bool
+    {
+        return $this->type === 'school';
+    }
+
+    /**
+     * آیا این دانشگاه / دانشکده است؟
+     */
+    public function isUniversity(): bool
+    {
+        return $this->type === 'college';
+    }
 }

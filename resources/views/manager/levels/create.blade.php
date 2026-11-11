@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'پایه جدید')
+@section('title', $levelLabel . ' جدید')
 
 @section('content')
 <div class="max-w-md mx-auto">
-    <h2 class="text-2xl font-bold mb-8">پایه / گروه جدید</h2>
+    <h2 class="text-2xl font-bold mb-8">{{ $levelLabel }} / گروه جدید</h2>
 
     @if ($errors->any())
         <div class="bg-red-50 text-red-600 rounded-lg p-4 mb-6 text-sm">{{ $errors->first() }}</div>
@@ -15,9 +15,9 @@
         @csrf
 
         <div>
-            <label class="block text-sm font-medium mb-2">نام پایه / گروه</label>
+            <label class="block text-sm font-medium mb-2">نام {{ $levelLabel }} / گروه</label>
             <input type="text" name="name" value="{{ old('name') }}"
-                   placeholder="مثلاً هفتم یا کارشناسی کامپیوتر"
+                   placeholder="مثلاً {{ $isUni ? 'کارشناسی کامپیوتر' : 'هفتم' }}"
                    class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
         </div>
 
@@ -25,7 +25,7 @@
             <label class="block text-sm font-medium mb-2">ترتیب نمایش (اختیاری)</label>
             <input type="number" name="order" value="{{ old('order', 0) }}" min="0" dir="ltr"
                    class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <p class="text-xs text-gray-400 mt-1">عدد کمتر = بالاتر در لیست. مثلاً هفتم=1، هشتم=2</p>
+            <p class="text-xs text-gray-400 mt-1">عدد کمتر = بالاتر در لیست.</p>
         </div>
 
         <button type="submit"

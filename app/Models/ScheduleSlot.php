@@ -21,6 +21,10 @@ class ScheduleSlot extends Model
         'starts_at',
         'ends_at',
         'extra_scope',
+        'is_recurring',
+        'recurrence_group_id',
+        'recurrence_index',
+        'recurrence_total',
     ];
 
     protected $casts = [
@@ -28,6 +32,7 @@ class ScheduleSlot extends Model
         'starts_at'      => 'datetime',
         'ends_at'        => 'datetime',
         'is_extra'       => 'boolean',
+        'is_recurring' => 'boolean',
     ];
 
     public static array $days = [

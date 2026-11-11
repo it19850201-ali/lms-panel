@@ -48,6 +48,7 @@ class ExtraClassController extends Controller
 
         return view('manager.extra-class.create', compact('teachers', 'klasses'));
     }
+
     public function store(Request $request)
     {
         $user = auth()->user();
@@ -57,7 +58,15 @@ class ExtraClassController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
+        $school = \App\Models\School::find($schoolId);
+        if (!$school) abort(404);
+
+        $activeTerm = $school->activeTerm();
+        if (!$activeTerm) {
+            return back()->withErrors(['error' => 'هیچ ترم فعالی وجود ندارد. ابتدا یک ترم فعال بسازید.'])->withInput();
+        }
+
+        $rules = [
             'subject'     => 'required|string|max:255',
             'teacher_id'  => 'required|exists:users,id',
             'scope'       => 'required|in:single,all',
@@ -66,69 +75,99 @@ class ExtraClassController extends Controller
             'start_time'  => 'required|string',
             'end_time'    => 'required|string',
             'description' => 'nullable|string|max:1000',
-        ], [
-            'subject.required'     => 'عنوان جلسه را وارد کنید',
-            'teacher_id.required'  => 'استاد را انتخاب کنید',
-            'klass_id.required_if' => 'کلاس را انتخاب کنید',
-            'date.required'        => 'تاریخ برگزاری را وارد کنید',
-            'start_time.required'  => 'ساعت شروع را وارد کنید',
-            'end_time.required'    => 'ساعت پایان را وارد کنید',
+        ];
+
+        // اگر دانشگاه بود، فیلدهای تکرار رو هم چک کن
+        if ($school->isUniversity()) {
+            $rules['is_recurring'] = 'nullable|boolean';
+            $rules['recurrence_count'] = 'required_if:is_recurring,1|nullable|integer|min:1|max:32';
+        }
+
+        $validated = $request->validate($rules, [
+            'subject.required'      => 'عنوان جلسه را وارد کنید',
+            'teacher_id.required'   => 'استاد را انتخاب کنید',
+            'klass_id.required_if'  => 'کلاس را انتخاب کنید',
+            'date.required'         => 'تاریخ برگزاری را وارد کنید',
+            'start_time.required'   => 'ساعت شروع را وارد کنید',
+            'end_time.required'     => 'ساعت پایان را وارد کنید',
+            'recurrence_count.required_if' => 'تعداد جلسات را وارد کنید',
         ]);
 
-        $startDateTime = $this->buildDateTime($validated['date'], $validated['start_time']);
-        $endDateTime = $this->buildDateTime($validated['date'], $validated['end_time']);
+        $baseStartDateTime = $this->buildDateTime($validated['date'], $validated['start_time']);
+        $baseEndDateTime = $this->buildDateTime($validated['date'], $validated['end_time']);
 
-        if (!$startDateTime) {
-            return back()->withErrors(['date' => 'فرمت تاریخ یا ساعت شروع نامعتبر است'])->withInput();
+        if (!$baseStartDateTime || !$baseEndDateTime) {
+            return back()->withErrors(['date' => 'فرمت تاریخ یا ساعت نامعتبر است'])->withInput();
         }
-        if (!$endDateTime) {
-            return back()->withErrors(['end_time' => 'فرمت ساعت پایان نامعتبر است'])->withInput();
-        }
-        if ($startDateTime->gte($endDateTime)) {
+        if ($baseStartDateTime->gte($baseEndDateTime)) {
             return back()->withErrors(['end_time' => 'ساعت پایان باید بعد از شروع باشد'])->withInput();
         }
 
-        $teacher = User::where('id', $validated['teacher_id'])
+        $klassId = $validated['scope'] === 'single' ? $validated['klass_id'] : null;
+
+        $teacher = \App\Models\User::where('id', $validated['teacher_id'])
             ->where('school_id', $schoolId)
             ->where('role', 'teacher')
             ->firstOrFail();
 
-        $klassId = $validated['scope'] === 'single' ? $validated['klass_id'] : null;
+        $isRecurring = $school->isUniversity() && $request->boolean('is_recurring');
+        $recurrenceCount = $isRecurring ? (int)$validated['recurrence_count'] : 1;
+        $recurrenceGroupId = $isRecurring ? uniqid('rec-') : null;
 
         $bbb = new BBBClient();
-        $meetingId = 'extra-' . $schoolId . '-' . time() . '-' . rand(1000, 9999);
-        $meetingName = $validated['subject'];
+        $createdCount = 0;
 
+        DB::beginTransaction();
         try {
-            $result = $bbb->createMeeting($meetingId, $meetingName);
-            if (($result['returncode'] ?? '') !== 'SUCCESS') {
-                return back()->withErrors(['error' => 'خطا در ساخت جلسه BBB: ' . ($result['message'] ?? 'نامشخص')])->withInput();
+            for ($i = 0; $i < $recurrenceCount; $i++) {
+                $currentStart = $baseStartDateTime->copy()->addWeeks($i);
+                $currentEnd = $baseEndDateTime->copy()->addWeeks($i);
+
+                // چک تداخل زمانی (اختیاری - خیلی ساده شده)
+                // $conflict = ScheduleSlot::where('teacher_id', $teacher->id)->where('starts_at', $currentStart)->exists();
+
+                $meetingId = 'extra-' . $schoolId . '-' . time() . '-' . rand(1000, 9999) . '-' . $i;
+                $meetingName = $validated['subject'];
+
+                $result = $bbb->createMeeting($meetingId, $meetingName);
+                if (($result['returncode'] ?? '') !== 'SUCCESS') {
+                    throw new \Exception('خطا در ساخت جلسه BBB: ' . ($result['message'] ?? 'نامشخص'));
+                }
+
+                ScheduleSlot::create([
+                    'school_id'        => $schoolId,
+                    'term_id'          => $activeTerm->id,
+                    'klass_id'         => $klassId,
+                    'teacher_id'       => $teacher->id,
+                    'bell_id'          => null,
+                    'day_of_week'      => null,
+                    'subject'          => $validated['subject'],
+                    'room'             => null,
+                    'bbb_meeting_id'   => $meetingId,
+                    'bbb_created_at'   => now(),
+                    'is_extra'         => true,
+                    'starts_at'        => $currentStart,
+                    'ends_at'          => $currentEnd,
+                    'extra_scope'      => $validated['scope'],
+                    'is_recurring'     => $isRecurring,
+                    'recurrence_group_id' => $recurrenceGroupId,
+                    'recurrence_index' => $isRecurring ? ($i + 1) : null,
+                    'recurrence_total' => $isRecurring ? $recurrenceCount : null,
+                ]);
+
+                $createdCount++;
             }
+
+            DB::commit();
+            return redirect()->route('manager.extra-class.index')
+                ->with('success', "تعداد {$createdCount} جلسه با موفقیت ساخته شد");
+
         } catch (\Throwable $e) {
-            Log::error('Extra BBB create failed: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'خطا در ارتباط با BBB: ' . $e->getMessage()])->withInput();
+            DB::rollBack();
+            Log::error('Extra BBB creation failed: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'خطا در ساخت جلسات: ' . $e->getMessage()])->withInput();
         }
-
-        ScheduleSlot::create([
-            'school_id'      => $schoolId,
-            'klass_id'       => $klassId,
-            'teacher_id'     => $teacher->id,
-            'bell_id'        => null,
-            'day_of_week'    => null,
-            'subject'        => $validated['subject'],
-            'room'           => null,
-            'bbb_meeting_id' => $meetingId,
-            'bbb_created_at' => now(),
-            'is_extra'       => true,
-            'starts_at'      => $startDateTime,
-            'ends_at'        => $endDateTime,
-            'extra_scope'    => $validated['scope'],
-        ]);
-
-        return redirect()->route('manager.extra-class.index')
-            ->with('success', 'کلاس فوق‌برنامه با موفقیت ساخته شد');
     }
-
     public function destroy(ScheduleSlot $slot)
     {
         $user = auth()->user();

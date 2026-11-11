@@ -117,6 +117,15 @@ class ScheduleController extends Controller
 
         // ============ چک‌های پلن ============
         $school = School::find($schoolId);
+        // ⭐ گرفتن ترم فعال
+        $school = School::find($schoolId);
+        $activeTerm = $school->activeTerm();
+
+        if (!$activeTerm) {
+            return back()->withErrors([
+                'error' => 'هیچ ترم فعالی وجود ندارد. لطفاً ابتدا یک ترم فعال بسازید.',
+            ])->withInput();
+        }
 
         // ۱. حداکثر کاربر هر کلاس
         $studentCount = User::where('klass_id', $klass->id)
@@ -139,6 +148,13 @@ class ScheduleController extends Controller
         if ($conflictCount >= $school->plan_max_concurrent) {
             return back()->withErrors([
                 'error' => "به حداکثر تعداد کلاس هم‌زمان پلن ({$school->plan_max_concurrent}) رسیده‌اید. لطفاً بعداً تلاش کنید یا با مدیر سیستم تماس بگیرید.",
+            ])->withInput();
+        }
+        // ⭐ گرفتن ترم فعال
+        $activeTerm = $school->activeTerm();
+        if (!$activeTerm) {
+            return back()->withErrors([
+                'error' => 'هیچ ترم فعالی وجود ندارد. لطفاً ابتدا از بخش «ترم‌های تحصیلی» یک ترم فعال بسازید.',
             ])->withInput();
         }
 
@@ -188,6 +204,7 @@ class ScheduleController extends Controller
 
         ScheduleSlot::create([
             'school_id'      => $schoolId,
+	    'term_id'        => $activeTerm->id,
             'klass_id'       => $klass->id,
             'teacher_id'     => $teacher->id,
             'bell_id'        => $bell->id,

@@ -1,17 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'پایه‌ها')
+@section('title', $levelLabel . '‌ها')
 
 @section('content')
 <div class="max-w-4xl mx-auto">
     <div class="flex justify-between items-center mb-8">
         <div>
-            <h2 class="text-2xl font-bold">پایه‌ها / گروه‌ها</h2>
+            <h2 class="text-2xl font-bold">{{ $levelLabel }}‌ها / گروه‌ها</h2>
             <a href="{{ route('manager.dashboard') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به پنل</a>
         </div>
         <a href="{{ route('manager.levels.create') }}"
            class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">
-            + پایه جدید
+            + {{ $levelLabel }} جدید
         </a>
     </div>
 
@@ -24,7 +24,7 @@
 
     @if ($levels->isEmpty())
         <div class="bg-white rounded-2xl border p-12 text-center text-gray-500">
-            هنوز پایه‌ای تعریف نشده.
+            هنوز {{ $levelLabel }}‌ای تعریف نشده.
         </div>
     @else
         <div class="grid gap-3">
@@ -33,11 +33,11 @@
                     <div>
                         <h3 class="font-bold text-lg">{{ $level->name }}</h3>
                         <p class="text-sm text-gray-500 mt-1">
-                            {{ $level->klasses_count }} کلاس
+                            {{ $level->klasses_count }} {{ $classLabel }}
                         </p>
                     </div>
                     <form method="POST" action="{{ route('manager.levels.destroy', $level) }}"
-                          onsubmit="return confirm('آیا مطمئنید؟ همه‌ی کلاس‌های این پایه هم حذف می‌شوند.');">
+                          onsubmit="return confirm('آیا مطمئنید؟ همه‌ی {{ $classLabel }}‌های این {{ $levelLabel }} هم حذف می‌شوند.');">
                         @csrf
                         @method('DELETE')
                         <button type="submit"

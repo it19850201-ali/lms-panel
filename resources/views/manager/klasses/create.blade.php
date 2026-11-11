@@ -1,10 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'کلاس جدید')
+@section('title', $classLabel . ' جدید')
 
 @section('content')
 <div class="max-w-md mx-auto">
-    <h2 class="text-2xl font-bold mb-8">کلاس جدید</h2>
+    <h2 class="text-2xl font-bold mb-8">{{ $classLabel }} جدید</h2>
 
     @if ($errors->any())
         <div class="bg-red-50 text-red-600 rounded-lg p-4 mb-6 text-sm">{{ $errors->first() }}</div>
@@ -12,7 +12,7 @@
 
     @if ($levels->isEmpty())
         <div class="bg-yellow-50 text-yellow-700 rounded-lg p-4 mb-6 text-sm">
-            اول باید یه پایه بسازی. <a href="{{ route('manager.levels.create') }}" class="underline">ساخت پایه</a>
+            اول باید یه {{ $levelLabel }} بسازی. <a href="{{ route('manager.levels.create') }}" class="underline">ساخت {{ $levelLabel }}</a>
         </div>
     @else
         <form method="POST" action="{{ route('manager.klasses.store') }}"
@@ -20,7 +20,7 @@
             @csrf
 
             <div>
-                <label class="block text-sm font-medium mb-2">پایه / گروه</label>
+                <label class="block text-sm font-medium mb-2">{{ $levelLabel }} / گروه</label>
                 <select name="academic_level_id"
                         class="w-full border rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">— انتخاب کنید —</option>
@@ -33,9 +33,9 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-2">نام کلاس</label>
+                <label class="block text-sm font-medium mb-2">نام {{ $classLabel }}</label>
                 <input type="text" name="name" value="{{ old('name') }}"
-                       placeholder="مثلاً ۷۰۱ یا گروه A"
+                       placeholder="مثلاً {{ $isUni ? 'گروه A' : '۷۰۱' }}"
                        class="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
 

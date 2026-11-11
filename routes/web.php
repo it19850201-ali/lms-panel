@@ -205,6 +205,14 @@ Route::middleware(['auth', 'manager'])->prefix('manager')->name('manager.')->gro
     Route::get('/klasses/{klass}/edit', [ManagerController::class, 'editKlass'])->name('klasses.edit');
     Route::put('/klasses/{klass}', [ManagerController::class, 'updateKlass'])->name('klasses.update');
     Route::delete('/klasses/{klass}', [ManagerController::class, 'destroyKlass'])->name('klasses.destroy');
+    // ========== ترم‌ها ==========
+    Route::get('/terms', [\App\Http\Controllers\TermController::class, 'index'])->name('terms');
+    Route::get('/terms/create', [\App\Http\Controllers\TermController::class, 'create'])->name('terms.create');
+    Route::post('/terms', [\App\Http\Controllers\TermController::class, 'store'])->name('terms.store');
+    Route::get('/terms/{term}/edit', [\App\Http\Controllers\TermController::class, 'edit'])->name('terms.edit');
+    Route::put('/terms/{term}', [\App\Http\Controllers\TermController::class, 'update'])->name('terms.update');
+    Route::post('/terms/{term}/activate', [\App\Http\Controllers\TermController::class, 'activate'])->name('terms.activate');
+    Route::delete('/terms/{term}', [\App\Http\Controllers\TermController::class, 'destroy'])->name('terms.destroy');
 
     // زنگ‌ها
     Route::get('/bells', [BellController::class, 'index'])->name('bells');

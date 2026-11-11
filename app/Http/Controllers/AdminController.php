@@ -64,7 +64,7 @@ class AdminController extends Controller
             'address' => 'nullable|string|max:1000',
         ]);
 
-        $validated['slug'] = School::generateSlug($validated['name']);
+        $validated['slug'] = (new School)->generateSlug($validated['name']);
         $validated['is_active'] = true;
 
         School::create($validated);
@@ -113,7 +113,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'mobile' => 'required|digits:11|unique:users,mobile',
-            'code_melli' => 'required|digits:10',
+            'code_melli' => 'required|digits:10|unique:users,code_melli',
             'school_id' => 'required|exists:schools,id',
         ]);
 

@@ -35,5 +35,28 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('jalaliTime', function ($expression) {
             return "<?php echo \App\Helpers\JalaliHelper::toJalali({$expression}, 'H:i'); ?>";
         });
+        // تعریف کلمات داینامیک برای کل پروژه (مدرسه / دانشگاه)
+        \Illuminate\Support\Facades\View::composer('*', function ($view) {
+            if (auth()->check() && auth()->user()->school) {
+                $isUni = auth()->user()->school->isUniversity();
+                $view->with([
+                    'isUni' => $isUni,
+                    'orgLabel' => $isUni ? 'دانشگاه' : 'مدرسه',
+                    'teacherLabel' => $isUni ? 'استاد' : 'معلم',
+                    'studentLabel' => $isUni ? 'دانشجو' : 'دانش‌آموز',
+                    'levelLabel' => $isUni ? 'مقطع' : 'پایه',
+                    'classLabel' => $isUni ? 'گروه' : 'کلاس',
+                ]);
+            } else {
+                $view->with([
+                    'isUni' => false,
+                    'orgLabel' => 'مرکز',
+                    'teacherLabel' => 'معلم',
+                    'studentLabel' => 'دانش‌آموز',
+                    'levelLabel' => 'پایه',
+                    'classLabel' => 'کلاس',
+                ]);
+            }
+        });
     }
 }

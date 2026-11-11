@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'معلم جدید')
+@section('title', $teacherLabel . ' جدید')
 
 @section('content')
 <div class="max-w-lg mx-auto">
     <div class="mb-6">
-        <h2 class="text-2xl font-bold mb-1">افزودن معلم جدید</h2>
-        <a href="{{ route('manager.teachers') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به لیست معلمان</a>
+        <h2 class="text-2xl font-bold mb-1">افزودن {{ $teacherLabel }} جدید</h2>
+        <a href="{{ route('manager.teachers') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به لیست {{ $teacherLabel }}ان</a>
     </div>
 
     @if ($errors->any())
@@ -18,7 +18,7 @@
         @csrf
 
         <div class="bg-blue-50 text-blue-800 rounded-xl p-3 text-xs leading-6">
-            ℹ️ معلمی که اینجا می‌سازی، <strong>بلافاصله فعال</strong> می‌شه و می‌تونه وارد سامانه بشه. رمز اولیه = کد ملی (اگه رمز نذاری).
+            ℹ️ {{ $teacherLabel }}ی که اینجا می‌سازی، <strong>بلافاصله فعال</strong> می‌شه و می‌تونه وارد سامانه بشه. رمز اولیه = کد ملی (اگه رمز نذاری).
         </div>
 
         <div>
@@ -57,7 +57,7 @@
         <div class="flex flex-col sm:flex-row gap-3 pt-2">
             <button type="submit"
                     class="flex-1 bg-indigo-600 text-white rounded-lg py-3 font-semibold hover:bg-indigo-700 transition">
-                ساخت معلم
+                ساخت {{ $teacherLabel }}
             </button>
             <a href="{{ route('manager.teachers') }}"
                class="px-6 bg-gray-100 text-gray-700 rounded-lg py-3 font-medium hover:bg-gray-200 text-center">

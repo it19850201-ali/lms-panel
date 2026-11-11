@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'ایمپورت دانش‌آموزان')
+@section('title', 'ایمپورت ' . $studentLabel . 'ان')
 
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="mb-8">
-        <h2 class="text-2xl font-bold mb-1">ایمپورت دانش‌آموزان از اکسل</h2>
+        <h2 class="text-2xl font-bold mb-1">ایمپورت {{ $studentLabel }}ان از اکسل</h2>
         <a href="{{ route('manager.dashboard') }}" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">← بازگشت به پنل</a>
     </div>
 
@@ -15,25 +15,25 @@
 
     @if ($levels->isEmpty())
         <div class="bg-yellow-50 text-yellow-700 rounded-lg p-6 mb-6 text-sm">
-            اول باید پایه و کلاس بسازی.
-            <a href="{{ route('manager.levels.create') }}" class="underline">ساخت پایه</a>
+            اول باید {{ $levelLabel }} و {{ $classLabel }} بسازی.
+            <a href="{{ route('manager.levels.create') }}" class="underline">ساخت {{ $levelLabel }}</a>
         </div>
     @else
         <div class="bg-blue-50 text-blue-800 rounded-2xl p-6 mb-6 text-sm leading-7">
             <h3 class="font-bold mb-2">راهنما</h3>
             <ol class="list-decimal list-inside space-y-1">
-                <li>پایه و کلاس مقصد را انتخاب کنید</li>
+                <li>{{ $levelLabel }} و {{ $classLabel }} مقصد را انتخاب کنید</li>
                 <li>قالب اکسل را دانلود و پر کنید</li>
                 <li>ستون‌ها: <strong>نام، نام خانوادگی، کد ملی، موبایل</strong></li>
-                <li>همه‌ی دانش‌آموزان به کلاس انتخاب‌شده اضافه می‌شوند</li>
-                <li>دانش‌آموزان تکراری (بر اساس کد ملی) فقط آپدیت می‌شوند</li>
+                <li>همه‌ی {{ $studentLabel }}ان به {{ $classLabel }} انتخاب‌شده اضافه می‌شوند</li>
+                <li>{{ $studentLabel }}ان تکراری (بر اساس کد ملی) فقط آپدیت می‌شوند</li>
             </ol>
         </div>
 
         <div class="bg-white rounded-2xl border p-6 mb-6 flex justify-between items-center">
             <div>
                 <h3 class="font-bold">قالب اکسل</h3>
-                <p class="text-sm text-gray-500 mt-1">۳ نمونه + ۵۰ ردیف خالی</p>
+                <p class="text-sm text-gray-500 mt-1">فقط ۴ ستون ساده</p>
             </div>
             <a href="{{ route('manager.students.template') }}"
                class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200">
@@ -47,7 +47,7 @@
             @csrf
 
             <div>
-                <label class="block text-sm font-medium mb-2">پایه</label>
+                <label class="block text-sm font-medium mb-2">{{ $levelLabel }}</label>
                 <select name="academic_level_id" id="academic_level_id"
                         class="w-full border rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">— انتخاب کنید —</option>
@@ -60,10 +60,10 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium mb-2">کلاس</label>
+                <label class="block text-sm font-medium mb-2">{{ $classLabel }}</label>
                 <select name="klass_id" id="klass_id" required
                         class="w-full border rounded-lg px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">— ابتدا پایه را انتخاب کنید —</option>
+                    <option value="">— ابتدا {{ $levelLabel }} را انتخاب کنید —</option>
                 </select>
             </div>
 
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
         klassSelect.innerHTML = '<option value="">در حال بارگذاری...</option>';
 
         if (!levelId) {
-            klassSelect.innerHTML = '<option value="">— ابتدا پایه را انتخاب کنید —</option>';
+            klassSelect.innerHTML = '<option value="">— ابتدا {{ $levelLabel }} را انتخاب کنید —</option>';
             return;
         }
 
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             klassSelect.innerHTML = '<option value="">— انتخاب کنید —</option>';
             if (data.length === 0) {
-                klassSelect.innerHTML = '<option value="">هیچ کلاسی در این پایه نیست</option>';
+                klassSelect.innerHTML = '<option value="">هیچ {{ $classLabel }}ی در این {{ $levelLabel }} نیست</option>';
                 return;
             }
             data.forEach(k => {
